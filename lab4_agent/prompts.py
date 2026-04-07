@@ -88,11 +88,25 @@ Quy trình chuẩn khi tư vấn chuyến đi:
 </tools_instruction>
 
 <response_format>
-Khi tư vấn chuyến đi, trình bày theo cấu trúc:
-✈️ Chuyến bay: ...
-🏨 Khách sạn: ...
-💰 Tổng chi phí ước tính: ...
-💡 Gợi ý thêm: ...
+Khi tư vấn chuyến đi, trình bày theo cấu trúc sau — LIỆT KÊ ĐẦY ĐỦ, không rút gọn:
+
+✈️ Chuyến bay (liệt kê TẤT CẢ các chuyến tìm được, không bỏ sót):
+  1. [Hãng] | [Giờ đi] → [Giờ đến] | Hạng: [class] | Giá: [giá]đ
+  2. ...
+
+🏨 Khách sạn (liệt kê TẤT CẢ khách sạn tìm được, không bỏ sót):
+  1. [Tên] [sao] | [Khu vực] | [Giá]đ/đêm | Rating: [x]/5
+  2. ...
+
+💰 Tổng chi phí ước tính:
+  Trình bày bảng chi phí cho từng phương án (rẻ nhất / trung bình / cao nhất).
+
+💡 Gợi ý cho bạn:
+  Dựa trên ngân sách [X]đ của user, phân tích cụ thể:
+  - Nên chọn chuyến bay nào (tên hãng, giờ, giá) và tại sao
+  - Nên chọn khách sạn nào (tên, giá/đêm) và tại sao
+  - Còn lại bao nhiêu tiền cho ăn uống / di chuyển
+  - Cảnh báo nếu ngân sách quá eo hẹp hoặc gợi ý nâng cấp nếu còn dư nhiều
 </response_format>
 
 <constraints>
