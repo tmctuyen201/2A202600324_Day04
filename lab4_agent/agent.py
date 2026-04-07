@@ -188,11 +188,51 @@ def _get_cli_graph():
 
 
 # ─────────────────────────────────────────────
-# 6. Public API for Streamlit
+# 6. Conversation Memory
 # ─────────────────────────────────────────────
-def run_agent_with_logs(user_input: str, console_output: bool = False) -> dict:
+class ConversationMemory:
+    """Lưu trữ lịch sử hội thoại để truyền vào mỗi lần gọi LLM."""
+
+    def __init__(self, max_turns: int = 20):
+        self.max_turns = max_turns  # giới hạn để tránh context quá dài
+        self._history: list = []    # list of (human_msg, ai_msg)
+
+    def add(self, user_input: str, ai_response: str):
+        self._history.append((user_input, ai_response))
+        if len(self._history) > self.max_turns:
+            self._history.pop(0)
+
+    def get_messages(self) -> list:
+        """Trả về list HumanMessage/AIMessage từ history."""
+        from langchain_core.messages import HumanMessage, AIMessage
+        msgs = []
+        for human, ai in self._history:
+            msgs.append(HumanMessage(content=human))
+            msgs.append(AIMessage(content=ai))
+        return msgs
+
+    def clear(self):
+        self._history = []
+
+    def __len__(self):
+        return len(self._history)
+
+
+# ─────────────────────────────────────────────
+# 7. Public API for Streamlit
+# ─────────────────────────────────────────────
+def run_agent_with_logs(
+    user_input: str,
+    memory: ConversationMemory | None = None,
+    console_output: bool = False,
+) -> dict:
     """
     Run the agent and return response + captured logs.
+
+    Args:
+        user_input: Câu hỏi của người dùng
+        memory: ConversationMemory instance để giữ context hội thoại
+        console_output: Có in ra console không
 
     Returns:
         {
@@ -205,7 +245,12 @@ def run_agent_with_logs(user_input: str, console_output: bool = False) -> dict:
     sl.new_turn(user_input)
     g = _build_graph(sl)
 
-    result = g.invoke({"messages": [("human", user_input)]})
+    # Ghép history + tin nhắn hiện tại
+    history_msgs = memory.get_messages() if memory else []
+    from langchain_core.messages import HumanMessage
+    all_messages = history_msgs + [HumanMessage(content=user_input)]
+
+    result = g.invoke({"messages": all_messages})
     sl.summary(result["messages"])
 
     final = result["messages"][-1]
@@ -215,6 +260,10 @@ def run_agent_with_logs(user_input: str, console_output: bool = False) -> dict:
             part["text"] for part in content
             if isinstance(part, dict) and part.get("type") == "text"
         )
+
+    # Lưu lượt này vào memory
+    if memory is not None:
+        memory.add(user_input, content)
 
     return {
         "response": content,
@@ -229,8 +278,10 @@ def run_agent_with_logs(user_input: str, console_output: bool = False) -> dict:
 if __name__ == "__main__":
     print("=" * 60)
     print("  TravelBuddy — Trợ lý Du lịch Thông minh")
-    print("  Gõ 'quit' để thoát")
+    print("  Gõ 'quit' để thoát | 'clear' để xóa lịch sử")
     print("=" * 60)
+
+    cli_memory = ConversationMemory()
 
     while True:
         user_input = input("\nBạn: ").strip()
@@ -239,16 +290,12 @@ if __name__ == "__main__":
         if user_input.lower() in ("quit", "exit", "q"):
             print("Tạm biệt! Chúc bạn có chuyến đi vui vẻ 🌟")
             break
+        if user_input.lower() == "clear":
+            cli_memory.clear()
+            print("🗑️  Đã xóa lịch sử hội thoại.")
+            continue
 
         logger.new_turn(user_input)
-        result = _get_cli_graph().invoke({"messages": [("human", user_input)]})
+        result = run_agent_with_logs(user_input, memory=cli_memory, console_output=True)
         logger.summary(result["messages"])
-
-        final = result["messages"][-1]
-        content = final.content
-        if isinstance(content, list):
-            content = "\n".join(
-                part["text"] for part in content
-                if isinstance(part, dict) and part.get("type") == "text"
-            )
-        print(f"\n🤖 TravelBuddy:\n{content}")
+        print(f"\n🤖 TravelBuddy:\n{result['response']}")

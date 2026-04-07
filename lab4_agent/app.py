@@ -4,7 +4,7 @@ from dotenv import load_dotenv, set_key
 
 load_dotenv()
 
-from agent import run_agent_with_logs
+from agent import run_agent_with_logs, ConversationMemory
 
 # ─────────────────────────────────────────────
 # PAGE CONFIG & STYLING
@@ -50,6 +50,9 @@ st.markdown("""
 # ─────────────────────────────────────────────
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+if "memory" not in st.session_state:
+    st.session_state.memory = ConversationMemory(max_turns=20)
 
 if "last_logs" not in st.session_state:
     st.session_state.last_logs = []
@@ -122,8 +125,12 @@ with st.sidebar:
     st.markdown("---")
     if st.button("🗑️ Xóa lịch sử chat", use_container_width=True):
         st.session_state.messages = []
+        st.session_state.memory = ConversationMemory(max_turns=20)
         st.session_state.last_logs = []
         st.rerun()
+
+    turns = len(st.session_state.memory)
+    st.caption(f"🧠 Memory: {turns} lượt hội thoại")
 
 # ─────────────────────────────────────────────
 # MAIN CONTENT
@@ -146,7 +153,11 @@ if prompt := st.chat_input("Hỏi về chuyến bay, khách sạn, ngân sách..
     with st.chat_message("assistant"):
         with st.spinner("Đang suy nghĩ..."):
             try:
-                result = run_agent_with_logs(prompt, console_output=False)
+                result = run_agent_with_logs(
+                    prompt,
+                    memory=st.session_state.memory,
+                    console_output=False,
+                )
                 content = result["response"]
                 st.session_state.last_logs = result["logs"]
                 st.markdown(content)
