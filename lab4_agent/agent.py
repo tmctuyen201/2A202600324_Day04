@@ -6,7 +6,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
-from tools import search_flights, search_hotels, calculate_budget
+from tools import search_flights, search_hotels, calculate_budget, calculate_days
 from prompts import SYSTEM_PROMPT
 from dotenv import load_dotenv
 import os
@@ -112,7 +112,7 @@ class AgentState(TypedDict):
 # ─────────────────────────────────────────────
 # 3. LLM & Tools (lazy init)
 # ─────────────────────────────────────────────
-tools_list = [search_flights, search_hotels, calculate_budget]
+tools_list = [search_flights, search_hotels, calculate_budget, calculate_days]
 _original_tool_node = None
 
 def _get_tool_node():

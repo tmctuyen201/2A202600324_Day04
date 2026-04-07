@@ -187,3 +187,113 @@ def calculate_budget(total_budget: int, expenses: str) -> str:
         return result
     except Exception as e:
         return f"Lỗi khi tính ngân sách: {str(e)}"
+
+
+@tool
+def calculate_days(from_date: str, to_date: str) -> str:
+    """
+    Tính số ngày giữa hai mốc thời gian. Hỗ trợ:
+    - Ngày cụ thể: 'dd/mm', 'dd/mm/yyyy', 'yyyy-mm-dd'
+    - Từ khoá: 'hôm nay', 'ngày mai', 'thứ 2'..'thứ 7', 'chủ nhật',
+               'tuần sau', 'cuối tuần', 'cuối tuần này', 'cuối tuần sau'
+    Tham số:
+    - from_date: ngày bắt đầu (VD: 'hôm nay', '20/04', '2026-04-20')
+    - to_date:   ngày kết thúc (VD: 'chủ nhật', '25/04', 'thứ 6')
+    Trả về số đêm, ngày đi và ngày về cụ thể.
+    """
+    from datetime import date, timedelta
+    import re
+
+    today = date.today()
+
+    WEEKDAY_MAP = {
+        "thứ 2": 0, "thứ hai": 0,
+        "thứ 3": 1, "thứ ba": 1,
+        "thứ 4": 2, "thứ tư": 2,
+        "thứ 5": 3, "thứ năm": 3,
+        "thứ 6": 4, "thứ sáu": 4,
+        "thứ 7": 5, "thứ bảy": 5,
+        "chủ nhật": 6, "cn": 6,
+    }
+
+    def next_weekday(target_wd: int, from_day: date) -> date:
+        """Ngày gần nhất có weekday == target_wd, không tính from_day."""
+        days_ahead = (target_wd - from_day.weekday()) % 7
+        if days_ahead == 0:
+            days_ahead = 7
+        return from_day + timedelta(days=days_ahead)
+
+    def parse(raw: str, anchor: date) -> date | None:
+        s = raw.strip().lower()
+
+        if s in ("hôm nay", "today"):
+            return anchor
+        if s in ("ngày mai", "tomorrow"):
+            return anchor + timedelta(days=1)
+        if s in ("ngày kia",):
+            return anchor + timedelta(days=2)
+        if s in ("cuối tuần", "cuối tuần này", "weekend"):
+            # Thứ 7 gần nhất
+            return next_weekday(5, anchor)
+        if s in ("cuối tuần sau", "weekend sau"):
+            return next_weekday(5, anchor) + timedelta(days=7)
+        if s in ("tuần sau",):
+            return anchor + timedelta(days=7)
+
+        # Thứ trong tuần
+        for kw, wd in WEEKDAY_MAP.items():
+            if s == kw:
+                return next_weekday(wd, anchor)
+
+        # dd/mm hoặc dd/mm/yyyy
+        m = re.fullmatch(r"(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?", s)
+        if m:
+            day, month = int(m.group(1)), int(m.group(2))
+            year = int(m.group(3)) if m.group(3) else anchor.year
+            if year < 100:
+                year += 2000
+            try:
+                d = date(year, month, day)
+                # Nếu ngày đã qua trong năm nay → sang năm sau
+                if d < anchor and not m.group(3):
+                    d = date(year + 1, month, day)
+                return d
+            except ValueError:
+                return None
+
+        # yyyy-mm-dd
+        m2 = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", s)
+        if m2:
+            try:
+                return date(int(m2.group(1)), int(m2.group(2)), int(m2.group(3)))
+            except ValueError:
+                return None
+
+        return None
+
+    try:
+        d_from = parse(from_date, today)
+        if d_from is None:
+            return f"Không nhận diện được ngày bắt đầu: '{from_date}'"
+
+        d_to = parse(to_date, d_from)
+        if d_to is None:
+            return f"Không nhận diện được ngày kết thúc: '{to_date}'"
+
+        if d_to <= d_from:
+            return f"Ngày kết thúc ({d_to.strftime('%d/%m/%Y')}) phải sau ngày bắt đầu ({d_from.strftime('%d/%m/%Y')})."
+
+        nights = (d_to - d_from).days
+
+        WEEKDAY_VI = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
+        from_str = f"{WEEKDAY_VI[d_from.weekday()]}, {d_from.strftime('%d/%m/%Y')}"
+        to_str   = f"{WEEKDAY_VI[d_to.weekday()]}, {d_to.strftime('%d/%m/%Y')}"
+
+        return (
+            f"📅 Kết quả tính ngày:\n"
+            f"   Ngày đi  : {from_str}\n"
+            f"   Ngày về  : {to_str}\n"
+            f"   Số đêm   : {nights} đêm ({nights} ngày)\n"
+        )
+    except Exception as e:
+        return f"Lỗi khi tính ngày: {str(e)}"
